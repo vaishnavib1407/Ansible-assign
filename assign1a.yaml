@@ -1,0 +1,36 @@
+---
+- hosts: devlinux
+  user: vaishnavi
+  connection: ssh
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: install java
+      action: yum pkg=java-1.8.0-openjdk state=present
+
+    - name: dir_create
+      command: "{{item}}"
+      loop:
+        - rm -rf server
+        - mkdir server
+
+    - name: Tomcat download
+      get_url:
+        url: https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.91/bin/apache-tomcat-9.0.91.zip
+        dest: /home/vaishnavi/
+
+    - name: unzip tomcat
+      ansible.builtin.unarchive:
+        src: /home/vaishnavi/apache-tomcat-9.0.91.zip
+        dest: /home/vaishnavi/server
+        remote_src: yes
+        mode: 0755
+
+    - name: start Tomcat
+      command: /home/vaishnavi/server/apache-tomcat-9.0.91/bin/startup.sh
+
+    - name: copy_war
+      copy:
+        src: /home/vaishnavi/LoginWebApp.war
+        dest: /home/vaishnavi/server/apache-tomcat-9.0.91/webapps/
