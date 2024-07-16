@@ -1,0 +1,112 @@
+---
+
+- hosts: devlinux
+  user: vaishnavi
+  become: yes
+  connection: ssh
+  gather_facts: yes
+
+
+  tasks:
+    - name: Install java
+      yum:
+        pkg: java-11-amazon-corretto.x86_64
+        state: present
+
+    - name: Install git
+      yum:
+        pkg: git
+        state: present
+
+    - name: Install maven
+      yum:
+        pkg: maven
+        state: present
+
+    - name: dir_create
+      command: "{{item}}"
+      loop:
+        - rm -rf git
+        - mkdir git
+
+    - name: Git_clone
+      ansible.builtin.git:
+        repo: "https://github.com/Shantanumajan6/project.git"
+        dest: /home/vaishnavi/git
+
+    - name: Maven_build
+      shell: mvn clean install
+      args:
+        chdir: /home/vaishnavi/git/
+
+
+
+- hosts: devlinux
+  user: vaishnavi
+  become: yes
+  connection: ssh
+  gather_facts: yes
+
+  tasks:
+    - name: Install docker
+      yum:
+        pkg: docker
+        state: present
+
+    - name: Start docker service
+      service:
+        name: docker
+        state: started
+
+    - name: Install Docker compose
+      get_url:
+        url: https://github.com/docker/compose/releases/download/1.29.2/docker-compose-{{ ansible_system }}-{{ ansible_architecture }}
+        dest: /usr/local/bin/docker-compose
+        mode: 0755
+
+    - name: Create a symbolic link for docker-compose
+      ansible.builtin.file:
+        src: /usr/local/bin/docker-compose
+        dest: /usr/bin/docker-compose
+        state: link
+
+    - name: Install Python 3
+      apt:
+        name: python3
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install pip3
+      apt:
+        name: python3-pip
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install Docker SDK for Python
+      pip:
+        name: docker
+        state: present
+        executable: pip3
+
+    - name: Pull an image
+      community.docker.docker_image:
+        name: tomcat:latest
+        source: pull
+
+    - name: Delete container
+      community.docker.docker_container:
+        name: cont_1
+        state: absent
+        force_kill: true
+    - name: Run Docker container
+      community.docker.docker_container:
+        name: cont_1
+        image: tomcat:latest
+        state: started
+        ports:
+          - "8080:8080"
+        volumes:
+          - /home/vaishnavi/git/target:/usr/local/tomcat/webapps
+        restart_policy: always
