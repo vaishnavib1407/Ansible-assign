@@ -1,0 +1,70 @@
+---
+
+- hosts: devlinux
+  user: vaishnavi
+  become: yes
+  connection: ssh
+  gather_facts: yes
+
+
+  tasks:
+    - name: Install java
+      yum:
+        pkg: java-11-amazon-corretto.x86_64
+        state: present
+
+    - name: Install git
+      yum:
+        pkg: git
+        state: present
+
+    - name: Install maven
+      yum:
+        pkg: maven
+        state: present
+
+    - name: dir_create
+      command: "{{item}}"
+      loop:
+        - rm -rf git
+        - rm -rf server
+        - mkdir git
+        - mkdir server
+
+    - name: Git_clone
+      ansible.builtin.git:
+        repo: "https://github.com/Shantanumajan6/project.git"
+        dest: /home/vaishnavi/git
+
+    - name: Maven_build
+      shell: mvn clean install
+      args:
+        chdir: /home/vaishnavi/git/
+
+    - name: Tomcat_Install
+      get_url:
+        url: "https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.91/bin/apache-tomcat-9.0.91.zip"
+        dest: /home/vaishnavi/
+
+    - name: Unzip tomcat tar
+      ansible.builtin.unarchive:
+        src: /home/vaishnavi/apache-tomcat-9.0.91.zip
+        dest: /home/vaishnavi/server
+        remote_src: yes
+        mode: 0755
+
+    - name: copy_war
+      ansible.builtin.copy:
+        src: /home/vaishnavi/git/target/LoginWebApp.war
+        dest: /home/vaishnavi/server/apache-tomcat-9.0.91/webapps/
+        remote_src: yes
+
+    - name: permision_to_start_tomcat
+      ansible.builtin.file:
+        path: /home/vaishnavi/server/apache-tomcat-9.0.91/bin/startup.sh
+        mode: 0755
+
+    - name: tomcat_start
+      ansible.builtin.shell:
+        cmd: ./startup.sh
+        chdir: /home/vaishnavi/server/apache-tomcat-9.0.91/bin
